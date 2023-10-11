@@ -1,0 +1,53 @@
+ALTER TABLE products
+    ADD last_modified TIMESTAMP;
+
+CREATE OR REPLACE FUNCTION products_last_modified_trigger()
+    RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_modified = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_products_last_modified
+    BEFORE UPDATE ON products
+    FOR EACH ROW
+EXECUTE FUNCTION products_last_modified_trigger();
+----
+
+
+CREATE TABLE order_details_audit (
+                                     audit_id SERIAL PRIMARY KEY,
+                                     operation_name VARCHAR(50),
+                                     user_name VARCHAR(50),
+                                     timestamp TIMESTAMP
+);
+
+CREATE OR REPLACE FUNCTION order_details_audit_insert_trigger()
+    RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO order_details_audit (operation_name, user_name, timestamp)
+    VALUES ('INSERT', CURRENT_USER, NOW());
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER order_details_audit_insert
+    AFTER INSERT ON order_details
+    FOR EACH ROW
+EXECUTE FUNCTION order_details_audit_insert_trigger();
+
+
+CREATE OR REPLACE FUNCTION order_details_audit_update_trigger()
+    RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO order_details_audit (operation_name, user_name, timestamp)
+    VALUES ('UPDATE', CURRENT_USER, NOW());
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER order_details_audit_update
+    AFTER UPDATE ON order_details
+    FOR EACH ROW
+EXECUTE FUNCTION order_details_audit_update_trigger();
